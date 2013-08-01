@@ -86,6 +86,9 @@ start_link() ->
                                                           ,{'consume_options', ?CONSUME_OPTIONS}
                                                          ], []).
 
+-spec sync_channels(atom()) -> 'ok'.
+sync_channels(Node) -> gen_server:cast(?MODULE, {'sync_channels', Node}).
+
 -spec sync(atom(), ne_binaries()) -> 'ok'.
 sync(Node, Channels) ->
     gen_server:cast(?MODULE, {'sync_channels', Node, Channels}).
@@ -106,7 +109,7 @@ summary(Node) ->
                   ,[{'=:=', '$1', {'const', Node}}]
                   ,['$_']
                  }],
-    print_summary(ets:select(?CHANNELS_TBL, MatchSpec, 1)).    
+    print_summary(ets:select(?CHANNELS_TBL, MatchSpec, 1)).
 
 -spec details() -> 'ok'.
 details() ->
@@ -114,7 +117,7 @@ details() ->
                   ,[]
                   ,['$_']
                  }],
-    print_details(ets:select(?CHANNELS_TBL, MatchSpec, 1)).    
+    print_details(ets:select(?CHANNELS_TBL, MatchSpec, 1)).
 
 -spec details(text()) -> 'ok'.
 details(UUID) when not is_binary(UUID) ->
@@ -278,6 +281,9 @@ handle_cast({'destroy_channel', UUID, Node}, State) ->
     N = ets:select_delete(?CHANNELS_TBL, MatchSpec),
     lager:debug("removed ~p channel(s) with id ~s on ~s", [N, UUID, Node]),
     {'noreply', State, 'hibernate'};
+
+handle_cast({'sync_channels', _Node}, State) ->
+    {'noreply', State};
 handle_cast({'sync_channels', Node, Channels}, State) ->
     lager:debug("ensuring channel cache is in sync with ~s", [Node]),
     MatchSpec = [{#channel{uuid = '$1', node = '$2', _ = '_'}
@@ -313,6 +319,7 @@ handle_cast({'flush_node', Node}, State) ->
     ets:select_delete(?CHANNELS_TBL, MatchSpec),
     {'noreply', State};
 handle_cast(_Req, State) ->
+    lager:debug("unhandled cast: ~p", [_Req]),
     {'noreply', State}.
 
 %%--------------------------------------------------------------------
