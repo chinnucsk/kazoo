@@ -26,7 +26,7 @@
 -record(state, {queue_name :: 'undefined' | ne_binary()
                 ,pool :: 'undefined' | pid()
                 ,job_id :: 'undefined' | ne_binary()
-                ,job :: 'undefined' | wh_json:json_object()
+                ,job :: 'undefined' | wh_json:object()
                 ,keep_alive :: 'undefined' | reference() 
                 ,max_time :: 'undefined' | reference()               
                }).
@@ -230,7 +230,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec attempt_to_acquire_job(ne_binary()) -> {'ok', wh_json:json_object()} |
+-spec attempt_to_acquire_job(ne_binary()) -> {'ok', wh_json:object()} |
                                                    {'error', term()}.
 attempt_to_acquire_job(Id) ->
     case couch_mgr:open_doc(?WH_FAXES, Id) of
@@ -248,7 +248,7 @@ attempt_to_acquire_job(Id) ->
             end
     end.
         
--spec bump_modified(ne_binary()) -> {'ok', wh_json:json_object()} | {'error', _}.
+-spec bump_modified(ne_binary()) -> {'ok', wh_json:object()} | {'error', _}.
 bump_modified(JobId) ->
     case couch_mgr:open_doc(?WH_FAXES, JobId) of
         {error, _}=E -> E;
@@ -263,12 +263,12 @@ bump_modified(JobId) ->
             end
     end.    
      
--spec release_failed_job('fetch_failed', string(), wh_json:json_object()) -> 'failure';
-                              ('bad_file', ne_binary(), wh_json:json_object()) -> 'failure';
-                              ('fetch_error', {atom(), _}, wh_json:json_object()) -> 'failure';
-                              ('tx_resp', wh_json:json_object(), wh_json:json_object()) -> 'failure';
-                              ('exception', _, wh_json:json_object()) -> 'failure';
-                              ('timeout', _, wh_json:json_object()) -> 'failure'.
+-spec release_failed_job('fetch_failed', string(), wh_json:object()) -> 'failure';
+                              ('bad_file', ne_binary(), wh_json:object()) -> 'failure';
+                              ('fetch_error', {atom(), _}, wh_json:object()) -> 'failure';
+                              ('tx_resp', wh_json:object(), wh_json:object()) -> 'failure';
+                              ('exception', _, wh_json:object()) -> 'failure';
+                              ('timeout', _, wh_json:object()) -> 'failure'.
 release_failed_job(fetch_failed, Status, JObj) ->
     Msg = wh_util:to_binary(io_lib:format("could not retrieve file, http response ~s", [Status])),
     Result = [{<<"success">>, false}
@@ -357,7 +357,7 @@ release_failed_job(job_timeout, _Error, JObj) ->
              ],
     release_job(Result, JObj).
 
--spec release_successful_job(wh_json:json_object(), wh_json:json_object()) -> 'ok'.
+-spec release_successful_job(wh_json:object(), wh_json:object()) -> 'ok'.
 release_successful_job(Resp, JObj) ->
     Result = [{<<"success">>, wh_json:is_true([<<"Resource-Response">>, <<"Fax-Success">>], Resp, false)}
               ,{<<"result_code">>, wh_json:get_value([<<"Resource-Response">>, <<"Fax-Result-Code">>], Resp, 0)}
@@ -371,7 +371,7 @@ release_successful_job(Resp, JObj) ->
              ],
     release_job(Result, JObj).
 
--spec release_job(proplist(), wh_json:json_object()) -> 'ok' | 'failure'.
+-spec release_job(proplist(), wh_json:object()) -> 'ok' | 'failure'.
 release_job(Result, JObj) ->
     Success = props:get_value(<<"success">>, Result, false),
     Updaters = [fun(J) -> wh_json:set_value(<<"tx_result">>, wh_json:from_list(Result), J) end
@@ -398,11 +398,11 @@ release_job(Result, JObj) ->
     couch_mgr:ensure_saved(?WH_FAXES, lists:foldr(fun(F, J) -> F(J) end, JObj, Updaters)),
     case Success of true -> ok; false -> failure end.
 
--spec elapsed_time(wh_json:json_object()) -> non_neg_integer().
+-spec elapsed_time(wh_json:object()) -> non_neg_integer().
 elapsed_time(JObj) ->
     wh_util:current_tstamp() - wh_json:get_integer_value(<<"pvt_created">>, JObj, wh_util:current_tstamp()).
 
--spec execute_job(wh_json:json_object(), ne_binary()) -> 'ok' | 'failure'.
+-spec execute_job(wh_json:object(), ne_binary()) -> 'ok' | 'failure'.
 execute_job(JObj, Q) ->
     JobId = wh_json:get_value(<<"_id">>, JObj),
     case fetch_document(JObj) of
@@ -419,7 +419,7 @@ execute_job(JObj, Q) ->
             release_failed_job(fetch_error, Reason, JObj)
     end.
 
--spec fetch_document(wh_json:json_object()) -> {'ok', string(), proplist(), ne_binary()} |
+-spec fetch_document(wh_json:object()) -> {'ok', string(), proplist(), ne_binary()} |
                                                      {'error', term()}.
 fetch_document(JObj) ->
     FetchRequest = wh_json:get_value(<<"document">>, JObj),    
@@ -483,7 +483,7 @@ normalize_content_type(<<Else/binary>>) ->
 normalize_content_type(CT) ->
     normalize_content_type(wh_util:to_binary(CT)).
 
--spec send_fax(ne_binary(), wh_json:json_object(), ne_binary()) -> 'ok'.
+-spec send_fax(ne_binary(), wh_json:object(), ne_binary()) -> 'ok'.
 send_fax(JobId, JObj, Q) ->
     IgnoreEarlyMedia = wh_util:to_binary(whapps_config:get_is_true(?CONFIG_CAT, <<"ignore_early_media">>, false)),
     Request = [{<<"Outbound-Caller-ID-Name">>, wh_json:get_value(<<"from_name">>, JObj)}

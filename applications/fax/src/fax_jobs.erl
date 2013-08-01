@@ -165,7 +165,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec distribute_jobs(wh_json:json_objects()) -> wh_json:json_objects().
+-spec distribute_jobs(wh_json:objects()) -> wh_json:objects().
 distribute_jobs([]) -> [];
 distribute_jobs([Job|Jobs]) -> 
     case catch poolboy:checkout(fax_worker_pool, false, 1000) of

@@ -52,7 +52,7 @@ start_link() ->
                                       ,{consume_options, ?CONSUME_OPTIONS} % optional to include
                                      ], []).
 
--spec new_request(wh_json:json_object(), proplist(), _) -> sup_startchild_ret().
+-spec new_request(wh_json:object(), proplist(), _) -> sup_startchild_ret().
 new_request(JObj, _Props, _RK) ->
     true = wapi_fax:req_v(JObj),
     Call = whapps_call:from_json(wh_json:get_value(<<"Call">>, JObj)),
