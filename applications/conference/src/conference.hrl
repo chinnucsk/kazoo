@@ -6,7 +6,7 @@
 -define(APP_NAME, <<"conference">>).
 -define(APP_VERSION, <<"2.0.0">>).
 
--define(CONFERENCE_CACHE, conference_cache).
+-define(CONFERENCE_CACHE, 'conference_cache').
 
--define(CONFERENCE_HRL, true).
+-define(CONFERENCE_HRL, 'true').
 -endif.
