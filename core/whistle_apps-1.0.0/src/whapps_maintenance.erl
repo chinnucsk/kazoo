@@ -21,7 +21,7 @@
 -export([cleanup_aggregated_account/1]).
 -export([migrate_limits/0, migrate_limits/1]).
 -export([migrate_media/0, migrate_media/1]).
--export([call_id_status/1]).
+-export([call_id_status/1, call_id_status/2]).
 
 -export([get_all_account_views/0]).
 
@@ -684,7 +684,10 @@ get_all_account_views() ->
     ].
 
 -spec call_id_status(ne_binary()) -> 'ok'.
+-spec call_id_status(ne_binary(), boolean() | ne_binary()) -> 'ok'.
 call_id_status(CallId) ->
+    call_id_status(CallId, 'false').
+call_id_status(CallId, Verbose) ->
     Req = [{<<"Call-ID">>, wh_util:to_binary(CallId)}
            | wh_api:default_headers(<<"shell">>, <<"0">>)
           ],
@@ -694,7 +697,17 @@ call_id_status(CallId) ->
                                       )
     of
         {'ok', Resp} ->
-            lager:info("channel '~s' has status '~s'", [CallId, wapi_call:get_status(Resp)]);
+            show_status(CallId, wh_util:is_true(Verbose), Resp);
         {'error', _E} ->
             lager:info("failed to get status of '~s': '~p'", [CallId, _E])
     end.
+
+show_status(CallId, 'false', Resp) ->
+    lager:info("channel '~s' has status '~s'", [CallId, wapi_call:get_status(Resp)]);
+show_status(CallId, 'true', Resp) ->
+    lager:info("Channel ~s", [CallId]),
+    lager:info("Status: ~s", [wh_json:get_value(<<"Status">>, Resp)]),
+    lager:info("Media Server: ~s", [wh_json:get_value(<<"Switch-Hostname">>, Resp)]),
+    lager:info("Responding App: ~s", [wh_json:get_value(<<"App-Name">>, Resp)]),
+    lager:info("Responding Node: ~s", [wh_json:get_value(<<"Node">>, Resp)]).
+
