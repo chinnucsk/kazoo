@@ -1,5 +1,5 @@
 %%%-------------------------------------------------------------------
-%%% @copyright (C) 2012, VoIP INC
+%%% @copyright (C) 2012-2013, 2600Hz INC
 %%% @doc
 %%%
 %%% @end
@@ -26,11 +26,11 @@
 
 -include("fax.hrl").
 
--define(BINDINGS, [{fax, []}]).
--define(RESPONDERS, [{{?MODULE, new_request}, {<<"*">>, <<"*">>}}]).
+-define(BINDINGS, [{'fax', []}]).
+-define(RESPONDERS, [{{?MODULE, 'new_request'}, {<<"*">>, <<"*">>}}]).
 -define(QUEUE_NAME, <<"fax_listener">>).
--define(QUEUE_OPTIONS, [{exclusive, false}]).
--define(CONSUME_OPTIONS, [{exclusive, false}]).
+-define(QUEUE_OPTIONS, [{'exclusive', 'false'}]).
+-define(CONSUME_OPTIONS, [{'exclusive', 'false'}]).
 
 %%%===================================================================
 %%% API
@@ -45,16 +45,16 @@
 %%--------------------------------------------------------------------
 -spec start_link() -> startlink_ret().
 start_link() ->
-    gen_listener:start_link(?MODULE, [{bindings, ?BINDINGS}
-                                      ,{responders, ?RESPONDERS}
-                                      ,{queue_name, ?QUEUE_NAME}       % optional to include
-                                      ,{queue_options, ?QUEUE_OPTIONS} % optional to include
-                                      ,{consume_options, ?CONSUME_OPTIONS} % optional to include
+    gen_listener:start_link(?MODULE, [{'bindings', ?BINDINGS}
+                                      ,{'responders', ?RESPONDERS}
+                                      ,{'queue_name', ?QUEUE_NAME}       % optional to include
+                                      ,{'queue_options', ?QUEUE_OPTIONS} % optional to include
+                                      ,{'consume_options', ?CONSUME_OPTIONS} % optional to include
                                      ], []).
 
--spec new_request(wh_json:object(), proplist(), _) -> sup_startchild_ret().
+-spec new_request(wh_json:object(), wh_proplist(), _) -> sup_startchild_ret().
 new_request(JObj, _Props, _RK) ->
-    true = wapi_fax:req_v(JObj),
+    'true' = wapi_fax:req_v(JObj),
     Call = whapps_call:from_json(wh_json:get_value(<<"Call">>, JObj)),
     fax_requests_sup:new(Call, JObj).
 
@@ -74,7 +74,7 @@ new_request(JObj, _Props, _RK) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, ok}.
+    {'ok', 'ok'}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -91,8 +91,8 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call(_Request, _From, State) ->
-    Reply = ok,
-    {reply, Reply, State}.
+    Reply = 'ok',
+    {'reply', Reply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -105,7 +105,7 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast(_Msg, State) ->
-    {noreply, State}.
+    {'noreply', State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -118,10 +118,10 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info(_Info, State) ->
-    {noreply, State}.
+    {'noreply', State}.
 
 handle_event(_JObj, _State) ->
-    {reply, []}.
+    {'reply', []}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -146,7 +146,7 @@ terminate(_Reason, _State) ->
 %% @end
 %%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+    {'ok', State}.
 
 %%%===================================================================
 %%% Internal functions

@@ -1,5 +1,5 @@
 %%%-------------------------------------------------------------------
-%%% @copyright (C) 2012, VoIP INC
+%%% @copyright (C) 2012-2013, 2600Hz INC
 %%% @doc
 %%%
 %%% @end
@@ -25,8 +25,8 @@
 
 req(Prop) when is_list(Prop) ->
     case req_v(Prop) of
-        false -> {error, "Proplist failed validation for fax_req"};
-        true -> wh_api:build_message(Prop, ?FAX_REQ_HEADERS, ?OPTIONAL_FAX_REQ_HEADERS)
+        'false' -> {'error', "Proplist failed validation for fax_req"};
+        'true' -> wh_api:build_message(Prop, ?FAX_REQ_HEADERS, ?OPTIONAL_FAX_REQ_HEADERS)
     end;
 req(JObj) ->
     req(wh_json:to_proplist(JObj)).
@@ -46,7 +46,7 @@ unbind_q(Q, _Prop) ->
 publish_req(JObj) ->
     publish_req(JObj, ?DEFAULT_CONTENT_TYPE).
 publish_req(Api, ContentType) ->
-    {ok, Payload} = wh_api:prepare_api_payload(Api, ?FAX_REQ_VALUES, fun req/1),
+    {'ok', Payload} = wh_api:prepare_api_payload(Api, ?FAX_REQ_VALUES, fun req/1),
     amqp_util:callmgr_publish(Payload, ContentType, fax_routing_key()).
 
 fax_routing_key() ->

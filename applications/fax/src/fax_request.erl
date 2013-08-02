@@ -1,5 +1,5 @@
 %%%-------------------------------------------------------------------
-%%% @copyright (C) 2012, VoIP INC
+%%% @copyright (C) 2012-2013, 2600Hz INC
 %%% @doc
 %%%
 %%% @end
@@ -32,8 +32,9 @@
           call :: whapps_call:call()
          ,action = 'receive' :: 'receive' | 'send'
          ,handler :: {pid(), reference()}
-         ,owner_id :: ne_binary()
+         ,owner_id :: api_binary()
          }).
+-type state() :: #state{}.
 
 %%%===================================================================
 %%% API
@@ -48,17 +49,19 @@
 %%--------------------------------------------------------------------
 start_link(Call, JObj) ->
     gen_listener:start_link(?MODULE
-                          ,[{bindings, [{call, [{callid, whapps_call:call_id(Call)}]}
-                                        ,{self, []}
-                                       ]}
-                            ,{responders, [{{?MODULE, relay_event}, {<<"*">>, <<"*">>}}]}
+                            ,[{'bindings', [{'call', [{'callid', whapps_call:call_id(Call)}]}
+                                          ,{'self', []}
+                                         ]}
+                            ,{'responders', [{{?MODULE, 'relay_event'}
+                                              ,[{<<"*">>, <<"*">>}]
+                                             }]}
                            ]
                           ,[Call, JObj]).
 
 -spec relay_event(wh_json:object(), wh_proplist()) -> any().
 relay_event(JObj, Props) ->
-    case props:get_value(handler, Props) of
-        undefined -> ignore;
+    case props:get_value('handler', Props) of
+        'undefined' -> 'ignore';
         {Pid, _} -> whapps_call_command:relay_event(Pid, JObj)
     end.
 
@@ -78,12 +81,12 @@ relay_event(JObj, Props) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Call, JObj]) ->
-    put(callid, whapps_call:call_id(Call)),
+    whapps_call:put_callid(Call),
 
     lager:debug("fax request starting"),
-    gen_listener:cast(self(), start_action),
+    gen_listener:cast(self(), 'start_action'),
 
-    {ok, #state{
+    {'ok', #state{
        call = Call
        ,action = get_action(JObj)
        ,owner_id = wh_json:get_value(<<"Owner-ID">>, JObj)
@@ -104,7 +107,7 @@ init([Call, JObj]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call(_Request, _From, State) ->
-    {reply, {error, not_implemented}, State}.
+    {'reply', {'error', 'not_implemented'}, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -116,12 +119,15 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast(start_action, #state{call=Call, action='receive', owner_id=OwnerId}=State) ->
-    {_Pid, _Ref}=Recv = spawn_monitor(?MODULE, receive_fax, [Call, OwnerId]),
+handle_cast('start_action', #state{call=Call
+                                   ,action='receive'
+                                   ,owner_id=OwnerId
+                                  }=State) ->
+    {_Pid, _Ref}=Recv = spawn_monitor(?MODULE, 'receive_fax', [Call, OwnerId]),
     lager:debug("receiving a fax in ~p(~p)", [_Pid, _Ref]),
-    {noreply, State#state{handler=Recv}};
+    {'noreply', State#state{handler=Recv}};
 handle_cast(_Msg, State) ->
-    {noreply, State}.
+    {'noreply', State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -133,16 +139,16 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({'DOWN',Ref,process,Pid,normal}, #state{handler={Pid, Ref}}=State) ->
+handle_info({'DOWN', Ref, 'process', Pid, 'normal'}, #state{handler={Pid, Ref}}=State) ->
     lager:debug("handler ~p down normally, request is done", [Pid]),
-    {stop, normal, State};
+    {'stop', 'normal', State};
 handle_info(_Info, State) ->
     lager:debug("unhandled message: ~p", [_Info]),
-    {noreply, State}.
+    {'noreply', State}.
 
--spec handle_event(wh_json:object(), #state{}) -> {'reply', wh_proplist()}.
+-spec handle_event(wh_json:object(), state()) -> {'reply', wh_proplist()}.
 handle_event(_JObj, #state{handler=Handler}) ->
-    {reply, [{handler,Handler}]}.
+    {'reply', [{'handler',Handler}]}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -182,18 +188,16 @@ get_action(JObj) ->
 
 -spec receive_fax(whapps_call:call(), api_binary()) -> any().
 receive_fax(Call, OwnerId) ->
-    put(callid, whapps_call:call_id(Call)),
+    whapps_call:put_callid(Call),
 
     whapps_call_command:answer(Call),
     case whapps_call_command:b_receive_fax(Call) of
-        {ok, RecvJObj} ->
+        {'ok', RecvJObj} ->
             lager:debug("rxfax resp: ~p", [RecvJObj]),
             whapps_call_command:hangup(Call),
 
             maybe_store_fax(Call, OwnerId, RecvJObj);
-        {failed, JObj} ->
-            lager:debug("rxfax failed: ~p", [JObj]);
-        {error, channel_hungup} ->
+        {'error', 'channel_hungup'} ->
             lager:debug("rxfax hungup prematurely");
         _Resp ->
             lager:debug("rxfax unhandled: ~p", [_Resp])
@@ -202,7 +206,7 @@ receive_fax(Call, OwnerId) ->
 maybe_store_fax(Call, OwnerId, RecvJObj) ->
     %% store Fax in DB
     case store_fax(Call, OwnerId, RecvJObj) of
-        {ok, FaxId} ->
+        {'ok', FaxId} ->
             lager:debug("storing fax successfully into ~s", [FaxId]),
 
             wapi_notifications:publish_fax(
@@ -237,15 +241,14 @@ store_fax(Call, OwnerId, JObj) ->
     lager:debug("storing fax ~s to ~s", [FaxFile, FaxUrl]),
 
     case whapps_call_command:b_store_fax(FaxUrl, Call) of
-        {ok, _JObj} -> {ok, FaxDocId};
+        {'ok', _JObj} -> {'ok', FaxDocId};
         E -> lager:debug("store_fax error: ~p", [E]), E
     end.
 
 create_fax_doc(Call, OwnerId, JObj) ->
     AccountDb = whapps_call:account_db(Call),
 
-    TStamp = wh_util:current_tstamp(),
-    {{Y,M,D}, {H,I,S}} = calendar:gregorian_seconds_to_datetime(TStamp),
+    {{Y,M,D}, {H,I,S}} = calendar:gregorian_seconds_to_datetime(wh_util:current_tstamp()),
 
     Name = list_to_binary(["fax message received at "
                            ,wh_util:to_binary(Y), "-", wh_util:to_binary(M), "-", wh_util:to_binary(D)
@@ -265,32 +268,33 @@ create_fax_doc(Call, OwnerId, JObj) ->
 
     Doc = wh_doc:update_pvt_parameters(wh_json:from_list(Props)
                                        ,AccountDb
-                                       ,[{type, <<"private_media">>}]
+                                       ,[{'type', <<"private_media">>}]
                                       ),
 
-    {ok, Doc1} = couch_mgr:save_doc(AccountDb, Doc),
+    {'ok', Doc1} = couch_mgr:save_doc(AccountDb, Doc),
     wh_json:get_value(<<"_id">>, Doc1).
 
 -spec fax_properties(wh_json:object()) -> wh_proplist().
 fax_properties(JObj) ->
-    [{wh_json:normalize_key(K), V} || {<<"Fax-", K/binary>>, V} <- wh_json:to_proplist(JObj)].
+    [{wh_json:normalize_key(K), V}
+     || {<<"Fax-", K/binary>>, V} <- wh_json:to_proplist(JObj)
+    ].
 
 attachment_url(Call, File, FaxDocId) ->
     AccountDb = whapps_call:account_db(Call),
     _ = case couch_mgr:open_doc(AccountDb, FaxDocId) of
-            {ok, JObj} ->
+            {'ok', JObj} ->
                 case wh_json:get_keys(wh_json:get_value(<<"_attachments">>, JObj, wh_json:new())) of
-                    [] -> ok;
+                    [] -> 'ok';
                     Existing -> [couch_mgr:delete_attachment(AccountDb, FaxDocId, Attach) || Attach <- Existing]
                 end;
-            {error, _} -> ok
+            {'error', _} -> 'ok'
         end,
     Rev = case couch_mgr:lookup_doc_rev(AccountDb, FaxDocId) of
-              {ok, R} -> <<"?rev=", R/binary>>;
+              {'ok', R} -> <<"?rev=", R/binary>>;
               _ -> <<>>
           end,
     list_to_binary([wh_couch_connections:get_url(), AccountDb, "/", FaxDocId, "/", File, Rev]).
-
 
 -spec tmp_file() -> ne_binary().
 tmp_file() ->
