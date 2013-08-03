@@ -379,7 +379,7 @@ compact({'compact', N}, #state{conn='undefined'
     Cookie = wh_couch_connections:get_node_cookie(),
     try get_node_connections(N, Cookie) of
         {'error', _E} ->
-            lager:debug("failed to connect to node ~s: ~p", [N, _E]),
+            lager:debug("failed to connect to node ~p: ~p", [N, _E]),
             maybe_send_update(P, Ref, 'job_finished'),
             gen_fsm:send_event(self(), 'next_job'),
             {'next_state', 'ready', State#state{conn='undefined'
