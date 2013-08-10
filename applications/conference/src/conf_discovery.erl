@@ -343,7 +343,6 @@ handle_search_error(Conference, Call, Srv) ->
     case whapps_conference_command:search(Conference) of
         {'error', _} ->
             lager:debug("creating conference on switch nodename '~p'", [whapps_call:switch_nodename(Call)]),
-            [_, SwitchHostname] = binary:split(whapps_call:switch_nodename(Call), <<"@">>)
             conf_participant:set_conference(Conference, Srv),
             conf_participant:join_local(Srv);
         {'ok', JObj} ->
